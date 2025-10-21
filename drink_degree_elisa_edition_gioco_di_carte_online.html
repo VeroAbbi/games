@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Drink & Degree – Elisa Edition</title>
+  <meta name="description" content="Gioco di carte online: pesca, mescola, modifica le carte e gioca a turni." />
+  <style>
+    :root{
+      --bg:#0b0c10; /* scuro elegante */
+      --card:#11131a;
+      --ink:#e6e6ef;
+      --muted:#a9adc1;
+      --accent:#7c5cff;
+      --accent-2:#00d1b2;
+      --danger:#ff5c7c;
+      --ok:#10c060;
+      --shadow: 0 20px 60px rgba(0,0,0,.45);
+      --radius: 20px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background: radial-gradient(1200px 800px at 20% -10%, #1a1d29 0%, var(--bg) 60%);
+      color:var(--ink);
+      display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
+      gap:16px;
+    }
+    header{width:100%; max-width:960px; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; gap:12px}
+    header h1{font-size: clamp(18px, 3.6vw, 28px); margin:0; letter-spacing:.3px}
+    header .row{display:flex; gap:8px; flex-wrap:wrap}
+
+    .pill{font-size:12px; color:var(--muted)}
+
+    main{width:100%; max-width:960px; padding:0 20px 20px; display:grid; grid-template-columns: 1fr; gap:16px}
+
+    .board{display:grid; grid-template-columns: 1fr; gap:16px}
+
+    .card{
+      min-height: 46vh;
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, #15192b 0%, #0f1220 100%);
+      box-shadow: var(--shadow);
+      padding: 24px; display:flex; align-items:center; justify-content:center; text-align:center;
+      position:relative; isolation:isolate; overflow:hidden;
+    }
+    .card::after{
+      content:""; position:absolute; inset:-30% -10% auto auto; width:60%; height:120%;
+      background: radial-gradient(500px 300px at 75% 0%, rgba(124,92,255,.15), transparent 60%),
+                  radial-gradient(300px 200px at 90% 40%, rgba(0,209,178,.12), transparent 65%);
+      transform: rotate(-8deg); pointer-events:none; z-index:-1;
+    }
+    .card .text{font-size: clamp(20px, 3.5vw, 32px); line-height:1.3}
+    .card .index{position:absolute; top:14px; left:16px; font-size:12px; color:var(--muted)}
+
+    .controls{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
+    button{
+      appearance:none; border:none; cursor:pointer; border-radius:14px; padding:12px 16px; font-weight:600;
+      background:#1b1f33; color:var(--ink); box-shadow: 0 8px 20px rgba(0,0,0,.25), inset 0 0 0 1px rgba(255,255,255,.06);
+      transition: transform .05s ease, filter .2s ease, background .2s ease;
+    }
+    button:hover{filter: brightness(1.15)}
+    button:active{transform: translateY(1px)}
+    .primary{background: linear-gradient(180deg, #775cff, #6a4eff);} 
+    .good{background: linear-gradient(180deg, #1cc58a, #13b37d);} 
+    .danger{background: linear-gradient(180deg, #ff6a8a, #f1547a);} 
+    .ghost{background:#14172a}
+
+    .bar{display:flex; align-items:center; gap:10px; justify-content:space-between; flex-wrap:wrap}
+    .bar .left, .bar .right{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+
+    .players{display:flex; gap:8px; flex-wrap:wrap}
+    .player-chip{padding:8px 10px; border-radius:999px; background:#151935; color:#cfd3ff; font-weight:600}
+    .player-chip.active{outline:2px solid var(--accent)}
+
+    details{
+      background:#0f1220; border-radius:16px; padding:10px 12px; box-shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+    summary{cursor:pointer; font-weight:700; color:#d7dbff}
+    .editor{display:grid; grid-template-columns: 1fr; gap:12px; margin-top:8px}
+    textarea{width:100%; min-height:180px; resize:vertical; border-radius:12px; padding:12px; background:#0b0e1a; color:var(--ink); border:1px solid #232744}
+    input[type="text"]{background:#0b0e1a; color:var(--ink); border:1px solid #232744; border-radius:10px; padding:10px}
+    .muted{color:var(--muted); font-size:13px}
+    .row{display:flex; gap:8px; flex-wrap:wrap}
+
+    footer{opacity:.8; font-size:12px; padding-bottom:24px}
+    a{color:#c6b6ff}
+
+    @media (min-width: 880px){
+      .board{grid-template-columns: 1.2fr .8fr}
+      .side{position:sticky; top:12px; align-self:start}
+    }
+    /* --- Overlay setup giocatori --- */
+    .overlay{position:fixed; inset:0; background:rgba(3,5,12,.7); backdrop-filter: blur(3px); display:none; align-items:center; justify-content:center; padding:20px; z-index:9999;}
+    .overlay.open{display:flex;}
+    .modal{width:min(720px, 96vw); background:#0f1220; border:1px solid #232744; border-radius:20px; box-shadow: var(--shadow); padding:20px;}
+    .modal h2{margin:0 0 8px 0; font-size:clamp(18px,3vw,24px)}
+    .modal .muted{margin-top:0}
+    .names{display:grid; gap:10px}
+    .names textarea{min-height:140px}
+    .actions{display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap; margin-top:10px}
+    label.inline{display:flex; align-items:center; gap:8px; font-size:14px; color:var(--muted)}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🎓🥂 Drink & Degree – Elisa Edition</h1>
+    <div class="row">
+      <span class="pill">Versione: 1.0</span>
+      <button id="btn-full" class="ghost" title="Schermo intero">⛶</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="board">
+      <div>
+        <div class="card" id="card">
+          <div class="index" id="cardIndex">—</div>
+          <div class="text" id="cardText">Premi “Pesca carta” per iniziare ✨</div>
+        </div>
+        <div class="bar">
+          <div class="left controls">
+            <button id="draw" class="primary">🎴 Pesca carta</button>
+            <button id="undo" class="ghost" title="Torna alla carta precedente">↩︎ Indietro</button>
+            <button id="reshuffle" class="danger" title="Rimescola il mazzo e ricomincia">🔄 Rimescola</button>
+          </div>
+          <div class="right controls">
+            <button id="toggleEditor" class="ghost">✏️ Editor carte</button>
+          </div>
+        </div>
+      </div>
+
+      <aside class="side">
+        <div class="row" style="margin-bottom:8px">
+          <button id="openSetup" class="good">👥 Imposta giocatori</button>
+        </div>
+        <div class="players" id="players"></div>
+        <div class="row" style="margin-top:8px">
+          <input id="playerInput" type="text" placeholder="Aggiungi giocatore e Invio" />
+          <button id="clearPlayers" class="ghost">🧹 Pulisci</button>
+        </div>
+
+        <details id="editorPanel">
+          <summary>Editor carte (avanzato)</summary>
+          <div class="editor">
+            <p class="muted">Una carta per riga. Puoi salvare e le modifiche resteranno in questo dispositivo (localStorage). Puoi anche esportare/importare un file .json da condividere.</p>
+            <textarea id="cardsTextarea"></textarea>
+            <div class="row">
+              <button id="saveCards" class="good">💾 Salva carte</button>
+              <button id="resetCards" class="ghost">♻️ Ripristina predefinite</button>
+            </div>
+            <div class="row">
+              <button id="exportCards" class="ghost">⬇️ Esporta .json</button>
+              <input type="file" id="importFile" accept="application/json" style="display:none" />
+              <button id="importCards" class="ghost">⬆️ Importa .json</button>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Come si gioca</summary>
+          <ul>
+            <li>Inserisci i nomi dei giocatori (opzionale).</li>
+            <li>Premi <strong>“Pesca carta”</strong>. Il turno passa automaticamente al prossimo giocatore.</li>
+            <li>Il mazzo è mescolato casualmente e viene rimescolato quando finisce.</li>
+            <li>Puoi modificare le carte dall’editor e salvare.</li>
+          </ul>
+        </details>
+      </aside>
+    </section>
+  </main>
+
+  <!-- Setup giocatori -->
+  <div class="overlay" id="setupModal">
+    <div class="modal">
+      <h2>👥 Imposta i giocatori</h2>
+      <p class="muted">Scrivi un nome per riga (ordine di turno dall'alto in basso). Puoi rimescolarli prima di iniziare.</p>
+      <div class="names">
+        <textarea id="namesTextarea" placeholder="Es.\nElisa\nLuca\nMarta\nGio\n..."></textarea>
+        <div class="row">
+          <label class="inline"><input type="checkbox" id="autoPrefix"> Scrivi automaticamente il nome del giocatore all'inizio di ogni carta</label>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="shuffleNames" class="ghost">🔀 Mescola ordine</button>
+        <button id="cancelSetup" class="ghost">Annulla</button>
+        <button id="startGame" class="primary">▶️ Inizia partita</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Fatto con ❤️ per Elisa. Suggerimento: per condividerlo online carica questo file su Netlify o GitHub Pages.
+  </footer>
+
+  <script>
+    // =====================
+    // DATI INIZIALI
+    // =====================
+    const DEFAULT_CARDS = [
+      "Tutti brindano per Elisa! 🍾",
+      "Racconta un ricordo universitario o bevi 2 sorsi.",
+      "Gioca “Io non ho mai” a tema università (1 sorso per chi ha fatto ciò).",
+      "Chi ha la foto più imbarazzante di Elisa vince! Distribuisci 3 sorsi.",
+      "Scegli una regola folle valida per tutti fino al prossimo Joker.",
+      "Bevi 1 se hai mai copiato durante un esame.",
+      "Elisa sceglie qualcuno che deve imitare un professore o bere.",
+      "Nomina tre esami del corso in 10 secondi o bevi 2.",
+      "Chi ha aiutato Elisa con la tesi beve con lei.",
+      "Fai un brindisi dicendo una qualità di Elisa.",
+      "Mostra la tua foto universitaria più buffa o bevi.",
+      "Tutti quelli che hanno mai saltato una lezione bevono 1.",
+      "Racconta la tua peggior giornata d’esame o bevi.",
+      "Chi è arrivato più tardi oggi beve 2.",
+      "Elisa sceglie qualcuno che deve ballare 30 secondi o bere 2.",
+      "Bevi 1 se hai mai studiato tutta la notte.",
+      "Canta la canzone che ti ricorda l’università o bevi.",
+      "Tutti quelli che hanno conosciuto Elisa in un modo assurdo bevono 1.",
+      "Chi ha mai fatto Erasmus beve 2.",
+      "Chi indovina il titolo della tesi di Elisa fa bere 2 persone.",
+      "Fai un complimento ad Elisa o bevi 1.",
+      "Bevi 1 se hai mai pianto per un voto.",
+      "Elisa sceglie chi deve bere 3 sorsi.",
+      "Mostra la tua ultima foto con Elisa. Chi non ne ha, beve.",
+      "Tutti quelli che hanno lavorato con Elisa bevono insieme.",
+      "Bevi 2 se hai mai fatto una presentazione disastrosa.",
+      "Crea una regola: fino al prossimo turno nessuno può dire “laurea”.",
+      "Chi è nato prima di Elisa beve 1, chi dopo 2.",
+      "Sfida: imita Elisa per 20 secondi! Chi non ride sceglie chi beve.",
+      "Elisa sceglie qualcuno che deve raccontare un ricordo comune.",
+      "Bevi 1 se hai mai confuso la data di un esame.",
+      "Chi ha fatto più brindisi stasera beve 1 in più.",
+      "Gioco rapido: “Chi è più probabile che…” – Elisa sceglie la vittima, che beve.",
+      "Tutti quelli con gli occhiali bevono 1.",
+      "Bevi 1 se hai mai sbagliato mail al professore.",
+      "Racconta un aneddoto divertente con Elisa o bevi 2.",
+      "Elisa assegna 5 sorsi totali come vuole.",
+      "Crea un brindisi originale per la nuova dottoressa.",
+      "Tutti quelli che hanno assistito alla discussione bevono 1.",
+      "Bevi 1 se hai mai perso una chiavetta USB con la tesi.",
+      "Elisa sceglie qualcuno che deve fare una dedica o bere.",
+      "Cita una frase tipica di Elisa, o bevi 2.",
+      "Chi ha portato il regalo più piccolo beve 1.",
+      "Elisa può scegliere di saltare questa carta o farla fare a qualcun altro.",
+      "Chi non ha ancora bevuto negli ultimi 5 minuti, beve ora.",
+      "Tutti bevono un sorso in onore della nuova dottoressa! 🎓",
+      "Gioco “flash”: chi ha più foto con Elisa sceglie chi beve.",
+      "Elisa sceglie qualcuno che deve raccontare come l’ha conosciuta.",
+      "JOKER! Tutti bevono 1 e si scambiano i drink a sinistra.",
+      "JOKER! Tutti devono dire “Dottoressa Elisa” prima di bere ogni volta, fino al prossimo Joker."
+    ];
+
+    // =====================
+    // RIFERIMENTI DOM
+    // =====================
+    const cardEl = document.getElementById('card');
+    const cardText = document.getElementById('cardText');
+    const cardIndex = document.getElementById('cardIndex');
+    const btnDraw = document.getElementById('draw');
+    const btnUndo = document.getElementById('undo');
+    const btnReshuffle = document.getElementById('reshuffle');
+    const btnFull = document.getElementById('btn-full');
+    const playersWrap = document.getElementById('players');
+    const playerInput = document.getElementById('playerInput');
+    const clearPlayers = document.getElementById('clearPlayers');
+
+    // Setup modal refs
+    const setupModal = document.getElementById('setupModal');
+    const openSetupBtn = document.getElementById('openSetup');
+    const namesTextarea = document.getElementById('namesTextarea');
+    const autoPrefixChk = document.getElementById('autoPrefix');
+    const shuffleNamesBtn = document.getElementById('shuffleNames');
+    const cancelSetupBtn = document.getElementById('cancelSetup');
+    const startGameBtn = document.getElementById('startGame');
+
+    const editorPanel = document.getElementById('editorPanel');
+    const toggleEditor = document.getElementById('toggleEditor');
+    const cardsTextarea = document.getElementById('cardsTextarea');
+    const saveCards = document.getElementById('saveCards');
+    const resetCards = document.getElementById('resetCards');
+    const exportCards = document.getElementById('exportCards');
+    const importCards = document.getElementById('importCards');
+    const importFile = document.getElementById('importFile');
+
+    // =====================
+    // LOCAL STORAGE KEYS
+    // =====================
+    const LS_KEY = 'drink_degree_elisa_cards_v1';
+    const LS_PLAYERS = 'drink_degree_elisa_players_v1';
+    const LS_AUTOPREFIX = 'drink_degree_elisa_autoprefix_v1';
+
+    // =====================
+    // STATO DI GIOCO
+    // =====================
+    let deck = [];
+    let order = [];
+    let pointer = -1; // indice della carta corrente nell'ordine
+    let history = []; // per "indietro"
+
+    // Gestione giocatori & turni
+    let players = [];
+    let turn = 0; // indice del giocatore di turno
+    let autoPrefix = true; // prefisso automatico del nome se non c'è segnaposto
+
+    // =====================
+    // FUNZIONI UTILI
+    // =====================
+    function loadCards(){
+      let stored = null;
+      try { stored = JSON.parse(localStorage.getItem(LS_KEY)); } catch(e){}
+      const cards = Array.isArray(stored) && stored.length ? stored : DEFAULT_CARDS.slice();
+      if(cardsTextarea) cardsTextarea.value = cards.join("\n");
+      return cards;
+    }
+
+    function saveCardsToLS(cards){
+      localStorage.setItem(LS_KEY, JSON.stringify(cards));
+    }
+
+    function getCurrentCards(){
+      return cardsTextarea.value
+        .split(/\n/)
+        .map(s => s.trim())
+        .filter(Boolean);
+    }
+
+    function shuffle(arr){
+      const a = arr.slice();
+      for(let i=a.length-1;i>0;i--){
+        const j = Math.floor(Math.random()*(i+1));
+        [a[i],a[j]]=[a[j],a[i]];
+      }
+      return a;
+    }
+
+    function buildDeck(){
+      deck = loadCards();
+      order = shuffle([...deck.keys()]);
+      pointer = -1;
+      history = [];
+      updateCardUI("Premi “Pesca carta” per iniziare ✨", '—');
+    }
+
+    function updateCardUI(text, idx){
+      cardText.textContent = text;
+      cardIndex.textContent = idx;
+      cardEl.animate([
+        { transform: 'scale(.99)', opacity: .96},
+        { transform: 'scale(1)', opacity: 1}
+      ], { duration: 140, easing: 'ease-out'});
+    }
+
+    function renderCardText(raw){
+      const name = players.length ? (players[turn] || `Giocatore ${turn+1}`) : 'Il giocatore di turno';
+      // sostituisci segnaposto {PLAYER} o {GIOCATORE}
+      let personalized = String(raw).replace(/\{(PLAYER|GIOCATORE)\}/gi, name);
+      const auto = getAutoPrefix();
+      if(auto && !/{(PLAYER|GIOCATORE)}/i.test(raw)){
+        personalized = name + ': ' + personalized;
+      }
+      return personalized;
+    }
+
+    function drawCard(){
+      if(pointer + 1 >= order.length){
+        updateCardUI('Mazzo terminato. Premi “Rimescola” per ricominciare. 🔄', '—');
+        return;
+      }
+      pointer += 1;
+      history.push(pointer);
+      const deckIndex = order[pointer];
+      updateTurnChip(); // aggiorna chi è di turno prima di personalizzare il testo
+      const text = renderCardText(deck[deckIndex]);
+      updateCardUI(text, `${pointer+1}/${order.length}`);
+    }
+
+    function undoCard(){
+      if(history.length <= 1){ // prima carta o niente
+        pointer = -1; history = [];
+        updateCardUI('Premi “Pesca carta” per iniziare ✨', '—');
+        return;
+      }
+      history.pop();
+      pointer = history[history.length-1];
+      const deckIndex = order[pointer];
+      updateTurnChip(true); // torna al giocatore precedente
+      const text = renderCardText(deck[deckIndex]);
+      updateCardUI(text, `${pointer+1}/${order.length}`);
+    }
+
+    function reshuffle(){
+      order = shuffle([...deck.keys()]);
+      pointer = -1; history = [];
+      updateCardUI('Mazzo mescolato. Si riparte! 🎲', '—');
+    }
+
+    // =====================
+    // GIOCATORI & TURNI
+    // =====================
+    function loadPlayers(){
+      try{ const p = JSON.parse(localStorage.getItem(LS_PLAYERS)); if(Array.isArray(p)) players = p; }catch(e){}
+      try{ const ap = JSON.parse(localStorage.getItem(LS_AUTOPREFIX)); if(typeof ap === 'boolean') autoPrefix = ap; }catch(e){}
+      renderPlayers();
+    }
+    function savePlayers(){ localStorage.setItem(LS_PLAYERS, JSON.stringify(players)); }
+    function setAutoPrefix(v){ autoPrefix = !!v; localStorage.setItem(LS_AUTOPREFIX, JSON.stringify(autoPrefix)); }
+    function getAutoPrefix(){ return !!autoPrefix; }
+
+    function renderPlayers(){
+      playersWrap.innerHTML = '';
+      players.forEach((name,i)=>{
+        const chip = document.createElement('span');
+        chip.className = 'player-chip' + (i===turn?' active':'');
+        chip.textContent = name || `Giocatore ${i+1}`;
+        chip.title = 'Clicca per rimuovere';
+        chip.onclick = ()=>{ players.splice(i,1); if(turn>=players.length) turn=0; savePlayers(); renderPlayers(); };
+        playersWrap.appendChild(chip);
+      });
+      if(players.length===0){
+        const hint=document.createElement('span');
+        hint.className='muted';
+        hint.textContent='Suggerimento: aggiungi i giocatori per evidenziare il turno.';
+        playersWrap.appendChild(hint);
+      }
+    }
+
+    function nextTurn(){ if(players.length){ turn = (turn+1) % players.length; renderPlayers(); } }
+    function prevTurn(){ if(players.length){ turn = (turn-1+players.length) % players.length; renderPlayers(); } }
+    function updateTurnChip(reverse=false){ reverse ? prevTurn() : nextTurn(); }
+
+    // =====================
+    // FULLSCREEN
+    // =====================
+    btnFull.addEventListener('click', async()=>{
+      const el = document.documentElement;
+      if(!document.fullscreenElement){ await el.requestFullscreen?.(); } else { await document.exitFullscreen?.(); }
+    });
+
+    // =====================
+    // EDITOR CARTE
+    // =====================
+    toggleEditor.addEventListener('click', ()=>{ editorPanel.open = !editorPanel.open; });
+    saveCards.addEventListener('click', ()=>{
+      const cards = getCurrentCards();
+      if(!cards.length){ alert('Inserisci almeno una carta.'); return; }
+      saveCardsToLS(cards); deck = cards.slice(); reshuffle(); alert('Carte salvate. Mazzo rimescolato.');
+    });
+    resetCards.addEventListener('click', ()=>{
+      cardsTextarea.value = DEFAULT_CARDS.join("\n");
+      saveCardsToLS(DEFAULT_CARDS); deck = DEFAULT_CARDS.slice(); reshuffle();
+    });
+
+    exportCards.addEventListener('click', ()=>{
+      const data = JSON.stringify(getCurrentCards(), null, 2);
+      const blob = new Blob([data], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href=url; a.download='drink_degree_elisa_carte.json'; a.click();
+      URL.revokeObjectURL(url);
+    });
+    importCards.addEventListener('click', ()=> importFile.click());
+    importFile.addEventListener('change', (e)=>{
+      const file = e.target.files?.[0]; if(!file) return;
+      const reader = new FileReader();
+      reader.onload = ()=>{
+        try{
+          const arr = JSON.parse(reader.result);
+          if(!Array.isArray(arr) || !arr.length) throw new Error('Formato non valido');
+          cardsTextarea.value = arr.join("\n"); saveCardsToLS(arr); deck = arr.slice(); reshuffle();
+          alert('Carte importate e salvate.');
+        }catch(err){ alert('Import non riuscito: ' + err.message); }
+      };
+      reader.readAsText(file);
+    });
+
+    // =====================
+    // BOTTONI MAZZO
+    // =====================
+    btnDraw.addEventListener('click', drawCard);
+    btnUndo.addEventListener('click', undoCard);
+    btnReshuffle.addEventListener('click', reshuffle);
+
+    // Tastiera rapida: spazio = pesca, backspace = indietro, r = rimescola
+    window.addEventListener('keydown', (e)=>{
+      if(['INPUT','TEXTAREA'].includes(document.activeElement?.tagName)) return;
+      if(e.code==='Space'){ e.preventDefault(); drawCard(); }
+      if(e.code==='Backspace'){ e.preventDefault(); undoCard(); }
+      if(e.key?.toLowerCase()==='r'){ reshuffle(); }
+    });
+
+    // =====================
+    // HANDLER GIOCATORI (barra laterale)
+    // =====================
+    playerInput.addEventListener('keydown', (e)=>{
+      if(e.key==='Enter'){
+        const name = playerInput.value.trim();
+        if(name){ players.push(name); savePlayers(); renderPlayers(); playerInput.value=''; }
+      }
+    });
+    clearPlayers.addEventListener('click', ()=>{ players=[]; savePlayers(); renderPlayers(); });
+
+    // =====================
+    // SETUP MODALE INIZIALE
+    // =====================
+    function openSetup(prefillNames=''){
+      namesTextarea.value = prefillNames || (players.join('\n'));
+      autoPrefixChk.checked = getAutoPrefix();
+      setupModal.classList.add('open');
+      namesTextarea.focus();
+    }
+    function closeSetup(){ setupModal.classList.remove('open'); }
+    function startGame(){
+      const names = namesTextarea.value.split(/\n/).map(s=>s.trim()).filter(Boolean);
+      if(!names.length){ alert('Inserisci almeno un nome.'); return; }
+      players = names; turn = -1; // così la prima pesca andrà al primo giocatore (nextTurn)
+      savePlayers(); renderPlayers();
+      setAutoPrefix(!!autoPrefixChk.checked);
+      closeSetup();
+      reshuffle();
+    }
+    function shuffleNames(){
+      const arr = namesTextarea.value.split(/\n/);
+      const cleaned = arr.map(s=>s.trim()).filter(Boolean);
+      const mixed = shuffle(cleaned);
+      namesTextarea.value = mixed.join('\n');
+    }
+
+    openSetupBtn.addEventListener('click', ()=> openSetup());
+    cancelSetupBtn.addEventListener('click', closeSetup);
+    startGameBtn.addEventListener('click', startGame);
+    shuffleNamesBtn.addEventListener('click', shuffleNames);
+
+    // =====================
+    // TEST (semplici) – non modificano lo stato del gioco
+    // =====================
+    function runTests(){
+      const orig = { players:[...players], turn, auto:autoPrefix };
+      try{
+        players = ['Anna','Bobo']; turn = 0; autoPrefix = false;
+        console.assert(renderCardText('Ciao {GIOCATORE}') === 'Ciao Anna', 'Test 1 fallito: segnaposto {GIOCATORE}');
+        console.assert(renderCardText('Ciao {PLAYER}') === 'Ciao Anna', 'Test 2 fallito: segnaposto {PLAYER}');
+        autoPrefix = true;
+        console.assert(renderCardText('Solo testo') === 'Anna: Solo testo', 'Test 3 fallito: autoPrefix true senza segnaposto');
+        autoPrefix = false;
+        console.assert(renderCardText('Solo testo') === 'Solo testo', 'Test 4 fallito: autoPrefix false senza segnaposto');
+      } finally {
+        players = orig.players; turn = orig.turn; autoPrefix = orig.auto;
+      }
+      console.log('✅ Test base passati');
+    }
+
+    // =====================
+    // AVVIO
+    // =====================
+    (function init(){
+      loadPlayers();
+      buildDeck();
+      if(!players.length){ openSetup(); }
+      cardEl.animate([{opacity:0, transform:'translateY(6px)'},{opacity:1, transform:'translateY(0)'}], {duration:350, easing:'ease-out'});
+      // Esegui test di base una volta
+      try{ runTests(); }catch(e){ console.warn('⚠️ Test falliti:', e); }
+    })();
+  </script>
+</body>
+</html>
